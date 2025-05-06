@@ -56,9 +56,8 @@ const LoginFlow = () => {
         if (otpSent && step === "otp" && !autofillAttempted) {
             console.log("OTP sent, attempting autofill...");
             attemptOtpAutofill();
-            setAutofillAttempted(true);
         }
-    }, [otpSent, step, autofillAttempted]);
+    }, [otpSent]);
 
     const animation = {
         initial: { opacity: 0, y: 20 },
