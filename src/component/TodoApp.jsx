@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState ,useEffect} from "react";
 import TodoForm from "./TodoForm";
 import EditModal from "./EditModel";
 import TaskDetailsModal from "./TaskDetailModel";
@@ -36,6 +36,22 @@ const TodoApp = () => {
     } = useTaskContext();
 
     const handleLogin = () => nav("/login");
+
+    const isStandalone = () =>
+        window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+
+    useEffect(() => {
+        const onBackButton = () => {
+            if (isStandalone()) {
+                window.close(); // May work in some Android PWA installs
+            }
+        };
+
+        window.addEventListener("popstate", onBackButton);
+        return () => window.removeEventListener("popstate", onBackButton);
+    }, []);
+
+    
 
     const handleEditClick = (todo) => {
         setEditingTodo(todo);

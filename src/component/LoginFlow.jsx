@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import useLoginFlow from "../hooks/useLoginFlow";
 import { Toaster } from "react-hot-toast";
 import OTPInput from "react-otp-input";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/authContext";
 
 const LoginFlow = () => {
     const {
@@ -24,6 +26,17 @@ const LoginFlow = () => {
     const [otpError, setOtpError] = useState("");
     const [otpSent, setOtpSent] = useState(false);
     const [autofillAttempted, setAutofillAttempted] = useState(false);
+
+    const { session, loadingAuth } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!loadingAuth && session) {
+            navigate("/", { replace: true });
+        }
+    }, [loadingAuth, session]);
+
+
 
     const attemptOtpAutofill = async () => {
         if ("OTPCredential" in window) {
@@ -161,10 +174,10 @@ const LoginFlow = () => {
                                 numInputs={6}
                                 isInputNum
                                 shouldAutoFocus
-                                containerStyle={{ display: 'flex', justifyContent: 'center', gap: '15px' }}
+                                containerStyle={{ display: 'flex', justifyContent: 'center', gap: '10px' }}
                                 inputStyle={{
-                                    width: '40px',
-                                    height: '60px',
+                                    width: '30px',
+                                    height: '50px',
                                     textAlign: 'center',
                                     border: '1px solid #d1d5db',
                                     borderRadius: '0.5rem',
