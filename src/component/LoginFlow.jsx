@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import useLoginFlow from "../hooks/useLoginFlow";
 import { Toaster } from "react-hot-toast";
@@ -22,8 +22,9 @@ const LoginFlow = () => {
     const [mobileError, setMobileError] = useState("");
     const [nameError, setNameError] = useState("");
     const [otpError, setOtpError] = useState("");
-    const [otpSent, setOtpSent] = useState(false)
-    
+    const [otpSent, setOtpSent] = useState(false);
+    const [autofillAttempted, setAutofillAttempted] = useState(false);
+
     const attemptOtpAutofill = async () => {
         if ("OTPCredential" in window) {
             try {
@@ -52,11 +53,12 @@ const LoginFlow = () => {
     };
 
     useEffect(() => {
-        if (otpSent && step === "otp") {
+        if (otpSent && step === "otp" && !autofillAttempted) {
             console.log("OTP sent, attempting autofill...");
             attemptOtpAutofill();
+            setAutofillAttempted(true);
         }
-    }, [otpSent, step]);
+    }, [otpSent, step, autofillAttempted]);
 
     const animation = {
         initial: { opacity: 0, y: 20 },
@@ -101,7 +103,9 @@ const LoginFlow = () => {
                                         setMobileError("Invalid mobile number.");
                                         return;
                                     }
-                                    handleMobileSubmit();
+                                    setOtpSent(true); // Mark OTP as sent
+                                    setAutofillAttempted(false); // Reset autofill attempt
+                                    handleMobileSubmit(); // Call original handler
                                 }}
                                 disabled={!isValidMobile(mobile) || isSendingOtp}
                                 className={`w-full py-3 rounded-lg transition ${isValidMobile(mobile) && !isSendingOtp
@@ -171,7 +175,6 @@ const LoginFlow = () => {
                                     fontSize: '1rem',
                                 }}
                                 renderInput={(props) => <input {...props} />}
-
                                 inputProps={{
                                     inputMode: 'numeric',
                                     autoComplete: 'one-time-code',
@@ -190,8 +193,8 @@ const LoginFlow = () => {
                                 }}
                                 disabled={!isValidOtp(otp)}
                                 className={`w-full py-3 rounded-lg transition ${isValidOtp(otp)
-                                        ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
-                                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                    ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
+                                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
                                     }`}
                             >
                                 Submit OTP
