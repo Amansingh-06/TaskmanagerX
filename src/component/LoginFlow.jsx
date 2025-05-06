@@ -53,7 +53,7 @@ const LoginFlow = () => {
     };
 
     useEffect(() => {
-        if (otpSent && step === "otp" && !autofillAttempted) {
+        if (otpSent) {
             console.log("OTP sent, attempting autofill...");
             attemptOtpAutofill();
         }
