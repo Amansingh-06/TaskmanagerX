@@ -32,6 +32,7 @@ const useLoginFlow = () => {
             } else {
                 console.log("✅ User found, sending OTP...");
                 setUserExists(true);
+                const otpSent = await sendOtp();  // 👈 FIXED HERE
                 if (otpSent) {
                     console.log("➡ Moving to OTP step");
                     setStep("otp");
@@ -39,6 +40,7 @@ const useLoginFlow = () => {
             }
         } catch (err) {
             toast.error("Something went wrong while checking user.");
+            console.log(err);
         } finally {
             setIsSendingOtp(false);
         }
