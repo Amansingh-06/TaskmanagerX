@@ -26,41 +26,50 @@ const LoginFlow = () => {
 
     const otpRefs = Array.from({ length: 6 }, () => useRef(null));
 
-    // OTP Autofill
+    // OTP Autofill with AbortController and cleanup
     useEffect(() => {
-        if (step === "otp") {
-            attemptOtpAutofill();
-        }
-    }, [step]);
+        let controller;
 
-    const attemptOtpAutofill = async () => {
-        if ("OTPCredential" in window) {
-            try {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 60000);
-                const content = await navigator.credentials.get({
-                    otp: { transport: ["sms"] },
-                    signal: controller.signal,
-                });
-                clearTimeout(timeout);
-                if (content && content.code) {
-                    const numericCode = content.code.replace(/\D/g, "").slice(0, 6);
-                    setOtp(numericCode);
+        const attemptOtpAutofill = async () => {
+            if ("OTPCredential" in window && step === "otp") {
+                try {
+                    controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 60000);
 
-                    setTimeout(() => {
-                        const lastIndex = numericCode.length - 1;
-                        if (otpRefs[lastIndex]?.current) {
-                            otpRefs[lastIndex].current.focus();
-                        }
-                    }, 100);
-                }
-            } catch (error) {
-                if (error.name !== "AbortError") {
-                    console.error("OTP Autofill Error:", error);
+                    const content = await navigator.credentials.get({
+                        otp: { transport: ["sms"] },
+                        signal: controller.signal,
+                    });
+
+                    clearTimeout(timeout);
+
+                    if (content && content.code) {
+                        const numericCode = content.code.replace(/\D/g, "").slice(0, 6);
+                        setOtp(numericCode);
+
+                        setTimeout(() => {
+                            const lastIndex = numericCode.length - 1;
+                            if (otpRefs[lastIndex]?.current) {
+                                otpRefs[lastIndex].current.focus();
+                            }
+                        }, 100);
+                    }
+                } catch (error) {
+                    if (error.name !== "AbortError") {
+                        console.error("OTP Autofill Error:", error);
+                    }
                 }
             }
-        }
-    };
+        };
+
+        attemptOtpAutofill();
+
+        return () => {
+            if (controller) {
+                controller.abort(); // ✅ Clean up OTP listener
+            }
+        };
+    }, [step]);
 
     const animation = {
         initial: { opacity: 0, y: 20 },
@@ -109,8 +118,8 @@ const LoginFlow = () => {
                                 }}
                                 disabled={!isValidMobile(mobile) || isSendingOtp}
                                 className={`w-full py-3 rounded-lg transition ${isValidMobile(mobile) && !isSendingOtp
-                                    ? "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
-                                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                        ? "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
+                                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
                                     }`}
                             >
                                 {isSendingOtp ? "Sending..." : "Send OTP"}
@@ -159,8 +168,8 @@ const LoginFlow = () => {
                                 onClick={handleOtpSubmit}
                                 disabled={!isValidOtp(otp)}
                                 className={`w-full py-3 rounded-lg transition ${isValidOtp(otp)
-                                    ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
-                                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                        ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
+                                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
                                     }`}
                             >
                                 Submit OTP
@@ -190,8 +199,8 @@ const LoginFlow = () => {
                                 onClick={handleNameSubmit}
                                 disabled={!isValidName(name)}
                                 className={`w-full py-3 rounded-lg transition ${isValidName(name)
-                                    ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
-                                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                        ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
                                     }`}
                             >
                                 Continue
