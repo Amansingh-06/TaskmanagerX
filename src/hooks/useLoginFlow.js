@@ -8,46 +8,32 @@ const useLoginFlow = () => {
     const [mobile, setMobile] = useState("");
     const [name, setName] = useState("");
     const [otp, setOtp] = useState("");
-    const [userExists, setUserExists] = useState(false);
     const [isSendingOtp, setIsSendingOtp] = useState(false);
 
     const formattedPhone = mobile.startsWith("+91") ? mobile : "+91" + mobile;
     const navigate = useNavigate();
 
+    // 📲 Handle Mobile Submit
     const handleMobileSubmit = async () => {
         setIsSendingOtp(true);
 
         try {
-            const { data, error } = await supabase
-                .from("users")
-                .select("*")
-                .eq("phone", formattedPhone)
-                .single();
-
-            console.log("🔍 User check result:", { data, error });
-
-            if (error || !data) {
-                setUserExists(false);
-                setStep("name");
+            const otpSent = await sendOtp();
+            if (otpSent) {
+                setStep("otp");
             } else {
-                console.log("✅ User found, sending OTP...");
-                setUserExists(true);
-                const otpSent = await sendOtp();  // 👈 FIXED HERE
-                if (otpSent) {
-                    console.log("➡ Moving to OTP step");
-                    setStep("otp");
-                }
+                toast.error("Sending OTP failed ❌");
             }
         } catch (err) {
-            toast.error("Something went wrong while checking user.");
+            toast.error("Something went wrong while sending OTP.");
             console.log(err);
         } finally {
             setIsSendingOtp(false);
         }
     };
 
+    // 🧾 Handle Name Submit (if name was missing after OTP)
     const handleNameSubmit = async () => {
-        console.log("➡ handleNameSubmit called with name:", name);
         try {
             const { error } = await supabase
                 .from("users")
@@ -57,11 +43,7 @@ const useLoginFlow = () => {
                 toast.error("Failed to register name ❌");
             } else {
                 toast.success("Name added successfully ✅");
-                const otpSent = await sendOtp();
-                if (otpSent) {
-                    console.log("➡ Moving to OTP step");
-                    setStep("otp");
-                }
+                navigate("/", { replace: true });
             }
         } catch (err) {
             console.error("❌ Unexpected error in handleNameSubmit:", err);
@@ -69,70 +51,59 @@ const useLoginFlow = () => {
         }
     };
 
+    // 🔐 Send OTP via Supabase
     const sendOtp = async () => {
         const toastId = toast.loading("Sending OTP...");
 
         try {
             const { data, error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
 
-
             if (error) {
-                toast.error(error.message || "Failed to send OTP ❌");
+                toast.error(error.message || "Failed to send OTP ❌", { id: toastId });
                 return false;
             }
 
             toast.success("OTP Sent ✅", { id: toastId });
             return true;
         } catch (error) {
-            toast.error("Unexpected error occurred ❌");
+            toast.error("Unexpected error occurred ❌", { id: toastId });
             return false;
         }
     };
 
+    // ✅ Handle OTP Submit -> Check name in DB
     const handleOtpSubmit = async () => {
         try {
-            const { data, error } = await toast.promise(
-                supabase.auth.verifyOtp({
-                    phone: formattedPhone,
-                    token: otp,
-                    type: "sms",
-                }),
-                {
-                    loading: "Verifying OTP...",
-                    success: "OTP Verified ✅",
-                    error: "Invalid OTP ❌",
-                }
-            );
+            const { data, error } = await supabase.auth.verifyOtp({
+                phone: formattedPhone,
+                token: otp,
+                type: "sms",
+            });
 
-
-            if (data?.user && !userExists) {
-                console.log("ℹ New user, checking again in DB...");
-                const { data: userCheck, error: checkError } = await supabase
-                    .from("users")
-                    .select("*")
-                    .eq("phone", formattedPhone)
-                    .single();
-
-
-                if (checkError || !userCheck) {
-                    const { error: insertError } = await supabase
-                        .from("users")
-                        .insert([{ phone: formattedPhone, name }]);
-
-                    if (insertError) {
-                        console.error("❌ Failed to insert user after OTP:", insertError);
-                        toast.error("Failed to add user to database ❌");
-                    } else {
-                        console.log("✅ User inserted post OTP");
-                        toast.success("User added to database ✅");
-                    }
-                }
+            if (error || !data?.user) {
+                toast.error("OTP is incorrect ❌");
+                return;
             }
 
-            navigate("/", { replace: true });
+            toast.success("OTP Verified ✅");
+
+            // Check if name already exists
+            const { data: user, error: nameError } = await supabase
+                .from("users")
+                .select("name")
+                .eq("phone", formattedPhone)
+                .single();
+
+            if (nameError || !user?.name) {
+                setStep("name");
+                console.log("User name fetch error or missing:", nameError);
+            } else {
+                navigate("/", { replace: true });
+            }
+
         } catch (err) {
             console.error("❌ Unexpected OTP error:", err);
-            toast.error("Unexpected OTP verification error");
+            toast.error("Something went wrong during OTP verification ❌");
         }
     };
 

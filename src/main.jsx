@@ -19,17 +19,17 @@ const Root = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
+    // ✅ Reset dismiss flag every time page loads
+
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       console.log('✅ beforeinstallprompt event triggered');
-      if (!localStorage.getItem('installPromptDismissed')) {
-        setDeferredPrompt(e);
-        setIsInstallable(true);
-      }
+      setDeferredPrompt(e);
+      setIsInstallable(true);
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Service Worker registration
+    // ✅ Service Worker registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker
@@ -62,10 +62,10 @@ const Root = () => {
       });
     }
 
-
+    // ✅ Request Notification Permission
     if (Notification.permission === 'default') {
       Notification.requestPermission().then((permission) => {
-        console.log(permission === 'granted' ? 'Notification granted' : 'Notification denied');
+        console.log(permission === 'granted' ? '🔔 Notification granted' : '🔕 Notification denied');
       });
     }
 
@@ -75,7 +75,7 @@ const Root = () => {
     };
   }, []);
 
-  // Handle install button click
+  // ✅ Handle Install Click
   const handleInstallClick = () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -86,15 +86,14 @@ const Root = () => {
           console.log('❌ User dismissed install');
         }
         setDeferredPrompt(null);
-        localStorage.setItem('installPromptDismissed', 'true');
+        setIsInstallable(false);
       });
     }
   };
 
-  // Handle cancel install prompt
+  // ✅ Handle Cancel Click
   const handleCancelClick = () => {
     setIsInstallable(false);
-    localStorage.setItem('installPromptDismissed', 'true');
   };
 
   return (

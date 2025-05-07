@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import useLoginFlow from "../hooks/useLoginFlow";
 import { Toaster } from "react-hot-toast";
 import OTPInput from "react-otp-input";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/authContext";
 
 const LoginFlow = () => {
     const {
@@ -25,52 +23,44 @@ const LoginFlow = () => {
     const [nameError, setNameError] = useState("");
     const [otpError, setOtpError] = useState("");
     const [otpSent, setOtpSent] = useState(false);
-    const [autofillAttempted, setAutofillAttempted] = useState(false);
 
-    const { session, loadingAuth } = useAuth();
-    const navigate = useNavigate();
+    const otpRefs = Array.from({ length: 6 }, () => useRef(null));
 
+    // OTP Autofill
     useEffect(() => {
-        if (!loadingAuth && session) {
-            navigate("/", { replace: true });
+        if (step === "otp") {
+            attemptOtpAutofill();
         }
-    }, [loadingAuth, session]);
-
-
+    }, [step]);
 
     const attemptOtpAutofill = async () => {
         if ("OTPCredential" in window) {
             try {
-                const abortController = new AbortController();
-                const timeout = setTimeout(() => abortController.abort(), 60000);
-
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 60000);
                 const content = await navigator.credentials.get({
                     otp: { transport: ["sms"] },
-                    signal: abortController.signal,
+                    signal: controller.signal,
                 });
-
                 clearTimeout(timeout);
-
                 if (content && content.code) {
-                    console.log("OTP detected:", content.code);
-                    setOtp(content.code);
+                    const numericCode = content.code.replace(/\D/g, "").slice(0, 6);
+                    setOtp(numericCode);
+
+                    setTimeout(() => {
+                        const lastIndex = numericCode.length - 1;
+                        if (otpRefs[lastIndex]?.current) {
+                            otpRefs[lastIndex].current.focus();
+                        }
+                    }, 100);
                 }
             } catch (error) {
                 if (error.name !== "AbortError") {
                     console.error("OTP Autofill Error:", error);
                 }
             }
-        } else {
-            console.warn("OTP Credential API not supported in this browser.");
         }
     };
-
-    useEffect(() => {
-        if (otpSent) {
-            console.log("OTP sent, attempting autofill...");
-            attemptOtpAutofill();
-        }
-    }, [otpSent]);
 
     const animation = {
         initial: { opacity: 0, y: 20 },
@@ -98,26 +88,24 @@ const LoginFlow = () => {
                                 type="tel"
                                 value={mobile}
                                 onChange={(e) => {
-                                    setMobile(e.target.value);
+                                    const onlyNumbers = e.target.value.replace(/\D/g, "");
+                                    setMobile(onlyNumbers);
                                     setMobileError("");
                                 }}
                                 placeholder="Enter Mobile Number"
                                 className="w-full border-2 border-gray-300 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                             />
                             {mobile && !isValidMobile(mobile) && (
-                                <p className="text-red-600 text-sm">
-                                    Please enter a valid mobile number.
-                                </p>
+                                <p className="text-red-600 text-sm">Please enter a valid mobile number.</p>
                             )}
                             <button
-                                onClick={() => {
+                                onClick={async () => {
                                     if (!isValidMobile(mobile)) {
                                         setMobileError("Invalid mobile number.");
                                         return;
                                     }
-                                    setOtpSent(true); // Mark OTP as sent
-                                    setAutofillAttempted(false); // Reset autofill attempt
-                                    handleMobileSubmit(); // Call original handler
+                                    const result = await handleMobileSubmit();
+                                    if (result !== false) setOtpSent(true);
                                 }}
                                 disabled={!isValidMobile(mobile) || isSendingOtp}
                                 className={`w-full py-3 rounded-lg transition ${isValidMobile(mobile) && !isSendingOtp
@@ -130,47 +118,14 @@ const LoginFlow = () => {
                         </motion.div>
                     )}
 
-                    {step === "name" && (
-                        <motion.div key="name" {...animation} className="space-y-4">
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => {
-                                    setName(e.target.value);
-                                    setNameError("");
-                                }}
-                                placeholder="Enter Your Name"
-                                className="w-full border-2 border-gray-300 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
-                            />
-                            {name && !isValidName(name) && (
-                                <p className="text-red-600 text-sm">
-                                    Name should be at least 3 characters and contain only letters.
-                                </p>
-                            )}
-                            <button
-                                onClick={() => {
-                                    if (!isValidName(name)) {
-                                        setNameError("Invalid name.");
-                                        return;
-                                    }
-                                    handleNameSubmit();
-                                }}
-                                disabled={!isValidName(name)}
-                                className={`w-full py-3 rounded-lg transition ${isValidName(name)
-                                    ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
-                                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
-                                    }`}
-                            >
-                                Continue
-                            </button>
-                        </motion.div>
-                    )}
-
                     {step === "otp" && (
                         <motion.div key="otp" {...animation} className="space-y-4">
                             <OTPInput
                                 value={otp}
-                                onChange={(value) => setOtp(value)}
+                                onChange={(value) => {
+                                    const numericOtp = value.replace(/\D/g, "");
+                                    setOtp(numericOtp);
+                                }}
                                 numInputs={6}
                                 isInputNum
                                 shouldAutoFocus
@@ -186,7 +141,12 @@ const LoginFlow = () => {
                                     color: '#374151',
                                     fontSize: '1rem',
                                 }}
-                                renderInput={(props) => <input {...props} />}
+                                renderInput={(props, index) => (
+                                    <input
+                                        {...props}
+                                        ref={otpRefs[index]}
+                                    />
+                                )}
                                 inputProps={{
                                     inputMode: 'numeric',
                                     autoComplete: 'one-time-code',
@@ -196,13 +156,7 @@ const LoginFlow = () => {
                                 <p className="text-red-600 text-sm">OTP must be 6 digits.</p>
                             )}
                             <button
-                                onClick={() => {
-                                    if (!isValidOtp(otp)) {
-                                        setOtpError("Invalid OTP.");
-                                        return;
-                                    }
-                                    handleOtpSubmit();
-                                }}
+                                onClick={handleOtpSubmit}
                                 disabled={!isValidOtp(otp)}
                                 className={`w-full py-3 rounded-lg transition ${isValidOtp(otp)
                                     ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
@@ -214,6 +168,36 @@ const LoginFlow = () => {
                         </motion.div>
                     )}
 
+                    {step === "name" && (
+                        <motion.div key="name" {...animation} className="space-y-4">
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => {
+                                    const onlyLetters = e.target.value.replace(/[^A-Za-z ]/g, "");
+                                    setName(onlyLetters);
+                                    setNameError("");
+                                }}
+                                placeholder="Enter Your Name"
+                                className="w-full border-2 border-gray-300 p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                            />
+                            {name && !isValidName(name) && (
+                                <p className="text-red-600 text-sm">
+                                    Name should be at least 3 characters and contain only letters.
+                                </p>
+                            )}
+                            <button
+                                onClick={handleNameSubmit}
+                                disabled={!isValidName(name)}
+                                className={`w-full py-3 rounded-lg transition ${isValidName(name)
+                                    ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                    }`}
+                            >
+                                Continue
+                            </button>
+                        </motion.div>
+                    )}
                 </AnimatePresence>
             </div>
         </div>
