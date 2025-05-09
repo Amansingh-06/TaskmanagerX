@@ -10,7 +10,6 @@ const Root = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [swRegistration, setSwRegistration] = useState(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -18,8 +17,6 @@ const Root = () => {
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
-
-    // ✅ Reset dismiss flag every time page loads
 
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -29,43 +26,29 @@ const Root = () => {
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // ✅ Service Worker registration
+    // ✅ Register single service worker
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker
-          .register('/service-worker.js')
-          .then((registration) => {
-            console.log('✅ Service Worker registered:', registration);
+      navigator.serviceWorker.register('/service-worker.js').then((registration) => {
+        console.log('✅ Service Worker registered:', registration);
 
-            registration.onupdatefound = () => {
-              const newWorker = registration.installing;
-              if (newWorker) {
-                newWorker.onstatechange = () => {
-                  console.log('🌀 SW state changed:', newWorker.state);
-                  if (newWorker.state === 'installed') {
-                    console.log(
-                      navigator.serviceWorker.controller
-                        ? '🚀 Update available – auto reloading'
-                        : '🆕 First time install'
-                    );
-                    if (navigator.serviceWorker.controller) {
-                      newWorker.postMessage({ type: 'SKIP_WAITING' });
-                    }
-                  }
-                };
+        // 🔔 Request notification permission
+       
+        // 🌀 SW update lifecycle
+        registration.onupdatefound = () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.onstatechange = () => {
+              console.log('🌀 SW state changed:', newWorker.state);
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('🚀 Update available – auto reloading');
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
               }
             };
-          })
-          .catch((error) => {
-            console.error('❌ SW registration failed:', error);
-          });
-      });
-    }
+          }
+        };
 
-    // ✅ Request Notification Permission
-    if (Notification.permission === 'default') {
-      Notification.requestPermission().then((permission) => {
-        console.log(permission === 'granted' ? '🔔 Notification granted' : '🔕 Notification denied');
+      }).catch(err => {
+        console.error('❌ Service Worker registration failed:', err);
       });
     }
 
@@ -75,7 +58,6 @@ const Root = () => {
     };
   }, []);
 
-  // ✅ Handle Install Click
   const handleInstallClick = () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -91,7 +73,6 @@ const Root = () => {
     }
   };
 
-  // ✅ Handle Cancel Click
   const handleCancelClick = () => {
     setIsInstallable(false);
   };

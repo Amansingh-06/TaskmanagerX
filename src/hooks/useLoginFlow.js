@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "../supabaseClient";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { getFCMToken } from "../Firebase";
 
 const useLoginFlow = () => {
     const [step, setStep] = useState("mobile");
@@ -35,21 +36,42 @@ const useLoginFlow = () => {
     // 🧾 Handle Name Submit (if name was missing after OTP)
     const handleNameSubmit = async () => {
         try {
-            const { error } = await supabase
+            // Insert user details (phone and name)
+            const { data, error } = await supabase
                 .from("users")
                 .insert([{ phone: formattedPhone, name }]);
 
             if (error) {
                 toast.error("Failed to register name ❌");
-            } else {
-                toast.success("Name added successfully ✅");
-                navigate("/", { replace: true });
+                return;
             }
+
+            toast.success("Name added successfully ✅");
+
+            // 🔐 Get FCM token
+            const fcmToken = await getFCMToken(); // Get the FCM token
+
+            if (fcmToken) {
+                // 🔄 Save FCM token in Supabase
+                const { error: tokenError } = await supabase
+                    .from("users")
+                    .update({ fcm_token: fcmToken })
+                    .eq("phone", formattedPhone); // Update the user's fcm_token
+
+                if (tokenError) {
+                    console.error("Failed to update FCM token:", tokenError);
+                } else {
+                    console.log("FCM Token saved ✅");
+                }
+            }
+
+            navigate("/", { replace: true });
         } catch (err) {
             console.error("❌ Unexpected error in handleNameSubmit:", err);
             toast.error("Unexpected error");
         }
     };
+    
 
     // 🔐 Send OTP via Supabase
     const sendOtp = async () => {
@@ -87,7 +109,24 @@ const useLoginFlow = () => {
 
             toast.success("OTP Verified ✅");
 
-            // Check if name already exists
+            // 🔐 Get FCM token
+            const fcmToken = await getFCMToken(); // Get the FCM token
+
+            if (fcmToken) {
+                // 🔄 Save FCM token in Supabase (for existing users)
+                const { error: tokenError } = await supabase
+                    .from("users")
+                    .update({ fcm_token: fcmToken })
+                    .eq("phone", formattedPhone);
+
+                if (tokenError) {
+                    console.error("Failed to update FCM token:", tokenError);
+                } else {
+                    console.log("FCM Token saved ✅");
+                }
+            }
+
+            // 🔍 Check if name exists
             const { data: user, error: nameError } = await supabase
                 .from("users")
                 .select("name")
@@ -96,16 +135,15 @@ const useLoginFlow = () => {
 
             if (nameError || !user?.name) {
                 setStep("name");
-                console.log("User name fetch error or missing:", nameError);
             } else {
                 navigate("/", { replace: true });
             }
-
         } catch (err) {
             console.error("❌ Unexpected OTP error:", err);
             toast.error("Something went wrong during OTP verification ❌");
         }
     };
+
 
     return {
         step,

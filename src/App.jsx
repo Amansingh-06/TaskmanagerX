@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import TodoApp from './component/TodoApp';
 import NavBar from './component/Navbar';
@@ -10,15 +10,15 @@ const App = ({
   onInstallClick,
   showInstallBanner,
   handleCancelClick,
-
 }) => {
+
+
   return (
     <Router>
-      <div
-        className="min-h-screen bg-gradient-to-tr from-blue-100 via-purple-100 to-pink-100 flex flex-col"
-      >
+      <div className="min-h-screen bg-gradient-to-tr from-blue-100 via-purple-100 to-pink-100 flex flex-col">
         {/* ✅ Navigation Bar */}
         <NavBar />
+
         {/* ✅ Routes */}
         <div className="py-4 flex flex-col gap-3">
           <Routes>
@@ -31,8 +31,6 @@ const App = ({
         {showInstallBanner && (
           <InstallPrompt onInstallClick={onInstallClick} handleCancelClick={handleCancelClick} />
         )}
-
-       
       </div>
     </Router>
   );
