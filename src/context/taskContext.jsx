@@ -62,39 +62,54 @@ export const TaskProvider = ({ children }) => {
 
         const channel = supabase
             .channel("realtime-tasks")
-            .on("postgres_changes", {
-                event: "*",
-                schema: "public",
-                table: "tasks",
-            }, ({ eventType, new: newTask, old: oldTask }) => {
-                const taskUser = newTask?.user_id || oldTask?.user_id;
-                if (taskUser !== userId) return;
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "tasks",
+                },
+                ({ eventType, new: newTask, old: oldTask }) => {
+                    const taskUser = newTask?.user_id || oldTask?.user_id;
+                    if (taskUser !== userId) return;
 
-                setTasks((prev) => {
-                    let updated = [...prev];
+                    setTasks((prev) => {
+                        let updated = [...prev];
 
-                    if (eventType === "INSERT") {
-                        if (matchesFilter(newTask)) {
-                            updated.unshift(newTask);
+                        // Filter match check
+                        const newMatches = newTask && matchesFilter(newTask);
+                        const oldMatches = oldTask && matchesFilter(oldTask);
+
+                        if (eventType === "INSERT" && newMatches) {
+                            updated = [newTask, ...prev].slice(0, tasksPerPage); // maintain pagination count
+                        } else if (eventType === "UPDATE") {
+                            if (newMatches) {
+                                updated = updated.map(t => t.id === newTask.id ? newTask : t);
+                            } else {
+                                updated = updated.filter(t => t.id !== oldTask.id);
+                            }
+                        } else if (eventType === "DELETE" && oldMatches) {
+                            updated = updated.filter(t => t.id !== oldTask.id);
                         }
-                    } else if (eventType === "UPDATE") {
-                        updated = updated.map(t =>
-                            t.id === newTask.id ? newTask : t
-                        );
-                    } else if (eventType === "DELETE") {
-                        updated = updated.filter(t => t.id !== oldTask.id);
-                    }
 
-                    return updated;
-                });
+                        return updated;
+                    });
 
-                // Update pagination count
-                fetchTasks(); // or optionally: update totalPages based on length
-            })
+                    // Update totalPages manually (optional optimization)
+                    setTotalPages((prevTotal) => {
+                        let countAdjustment = 0;
+                        if (eventType === "INSERT" && matchesFilter(newTask)) countAdjustment = 1;
+                        if (eventType === "DELETE" && matchesFilter(oldTask)) countAdjustment = -1;
+                        const newTotalItems = tasks.length + countAdjustment;
+                        return Math.max(1, Math.ceil(newTotalItems / tasksPerPage));
+                    });
+                }
+            )
             .subscribe();
 
         return () => supabase.removeChannel(channel);
     }, [userId, taskFilter, currentPage]);
+    
 
     // 🟢 Add Task
     const addTask = async (title, desc, date) => {
