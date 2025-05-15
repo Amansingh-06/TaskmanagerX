@@ -26,7 +26,6 @@ const LoginFlow = () => {
 
     const otpRefs = Array.from({ length: 6 }, () => useRef(null));
 
-    // OTP Autofill with AbortController and cleanup
     useEffect(() => {
         let controller;
 
@@ -58,7 +57,18 @@ const LoginFlow = () => {
                     if (error.name !== "AbortError") {
                         console.error("OTP Autofill Error:", error);
                     }
+                    setTimeout(() => {
+                        if (otpRefs[0]?.current) {
+                            otpRefs[0].current.focus();
+                        }
+                    }, 100);
                 }
+            } else if (step === "otp") {
+                setTimeout(() => {
+                    if (otpRefs[0]?.current) {
+                        otpRefs[0].current.focus();
+                    }
+                }, 100);
             }
         };
 
@@ -66,7 +76,7 @@ const LoginFlow = () => {
 
         return () => {
             if (controller) {
-                controller.abort(); // ✅ Clean up OTP listener
+                controller.abort();
             }
         };
     }, [step]);
@@ -118,8 +128,8 @@ const LoginFlow = () => {
                                 }}
                                 disabled={!isValidMobile(mobile) || isSendingOtp}
                                 className={`w-full py-3 rounded-lg transition ${isValidMobile(mobile) && !isSendingOtp
-                                        ? "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
-                                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                    ? "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
+                                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
                                     }`}
                             >
                                 {isSendingOtp ? "Sending..." : "Send OTP"}
@@ -132,7 +142,7 @@ const LoginFlow = () => {
                             <OTPInput
                                 value={otp}
                                 onChange={(value) => {
-                                    const numericOtp = value.replace(/\D/g, "");
+                                    const numericOtp = value.replace(/\D/g, "").slice(0, 6);
                                     setOtp(numericOtp);
                                 }}
                                 numInputs={6}
@@ -150,10 +160,26 @@ const LoginFlow = () => {
                                     color: '#374151',
                                     fontSize: '1rem',
                                 }}
-                                renderInput={(props, index) => (
+                                renderInput={(inputProps, index) => (
                                     <input
-                                        {...props}
+                                        {...inputProps}
                                         ref={otpRefs[index]}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, "");
+                                            const otpArray = otp.split("");
+                                            otpArray[index] = val;
+                                            const newOtp = otpArray.join("").slice(0, 6);
+                                            setOtp(newOtp);
+
+                                            if (val && index < otpRefs.length - 1) {
+                                                otpRefs[index + 1]?.current?.focus();
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Backspace" && !otp[index] && index > 0) {
+                                                otpRefs[index - 1]?.current?.focus();
+                                            }
+                                        }}
                                     />
                                 )}
                                 inputProps={{
@@ -168,8 +194,8 @@ const LoginFlow = () => {
                                 onClick={handleOtpSubmit}
                                 disabled={!isValidOtp(otp)}
                                 className={`w-full py-3 rounded-lg transition ${isValidOtp(otp)
-                                        ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
-                                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                    ? "bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
+                                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
                                     }`}
                             >
                                 Submit OTP
@@ -199,8 +225,8 @@ const LoginFlow = () => {
                                 onClick={handleNameSubmit}
                                 disabled={!isValidName(name)}
                                 className={`w-full py-3 rounded-lg transition ${isValidName(name)
-                                        ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
-                                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                    ? "bg-green-600 text-white hover:bg-green-700 cursor-pointer"
+                                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
                                     }`}
                             >
                                 Continue
