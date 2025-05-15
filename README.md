@@ -11,6 +11,7 @@
 - **Task View**: Toggle between tasks grouped by due dates.
 - **Pagination**: View tasks with smooth pagination for easy navigation.
 - **Automatic Updates**: New versions of the app are available, with a prompt for users to update to the latest version.
+- **otp autofill**
 
 ## Technologies Used
 
