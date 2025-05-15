@@ -56,7 +56,7 @@ export const TaskProvider = ({ children }) => {
         fetchTasks();
     }, [userId, loadingAuth, taskFilter, currentPage]);
 
-    // 🔁 Real-time Sync (Smooth State Update)
+    // 🔁 Real-time Sync
     useEffect(() => {
         if (!userId) return;
 
@@ -76,12 +76,11 @@ export const TaskProvider = ({ children }) => {
                     setTasks((prev) => {
                         let updated = [...prev];
 
-                        // Filter match check
                         const newMatches = newTask && matchesFilter(newTask);
                         const oldMatches = oldTask && matchesFilter(oldTask);
 
                         if (eventType === "INSERT" && newMatches) {
-                            updated = [newTask, ...prev].slice(0, tasksPerPage); // maintain pagination count
+                            updated = [newTask, ...prev].slice(0, tasksPerPage);
                         } else if (eventType === "UPDATE") {
                             if (newMatches) {
                                 updated = updated.map(t => t.id === newTask.id ? newTask : t);
@@ -95,7 +94,6 @@ export const TaskProvider = ({ children }) => {
                         return updated;
                     });
 
-                    // Update totalPages manually (optional optimization)
                     setTotalPages((prevTotal) => {
                         let countAdjustment = 0;
                         if (eventType === "INSERT" && matchesFilter(newTask)) countAdjustment = 1;
@@ -109,67 +107,83 @@ export const TaskProvider = ({ children }) => {
 
         return () => supabase.removeChannel(channel);
     }, [userId, taskFilter, currentPage]);
-    
 
     // 🟢 Add Task
     const addTask = async (title, desc, date) => {
         if (!title || !userId) return toast.error("Title is required!");
-        const toastId = toast.loading("Adding task...");
-        const { error } = await supabase.from("tasks").insert([{
+
+        const promise = supabase.from("tasks").insert([{
             title,
             description: desc || "",
             due_date: date,
-            user_id: userId
+            user_id: userId,
         }]);
-        toast.dismiss(toastId);
-        if (error) toast.error("Failed to add task");
-        else toast.success("Task added!");
+
+        await toast.promise(promise, {
+            loading: "Adding task...",
+            success: "Task added!",
+            error: "Failed to add task",
+        });
     };
 
     // ✏️ Edit Task
     const editTask = async (id, updatedTask) => {
-        const toastId = toast.loading("Updating...");
-        const { error } = await supabase.from("tasks").update(updatedTask).eq("id", id);
-        toast.dismiss(toastId);
-        if (error) toast.error("Error updating task");
-        else toast.success("Task updated!");
+        const promise = supabase
+            .from("tasks")
+            .update(updatedTask)
+            .eq("id", id);
+
+        await toast.promise(promise, {
+            loading: "Updating task...",
+            success: "Task updated!",
+            error: "Failed to update task",
+        });
     };
 
-    // ❌ Delete
+    // ❌ Delete Task
     const deleteTask = async (id) => {
-        const toastId = toast.loading("Deleting...");
-        const { error } = await supabase.from("tasks").delete().eq("id", id);
-        toast.dismiss(toastId);
-        if (error) toast.error("Error deleting");
-        else toast.success("Task deleted!");
+        const promise = supabase
+            .from("tasks")
+            .delete()
+            .eq("id", id);
+
+        await toast.promise(promise, {
+            loading: "Deleting task...",
+            success: "Task deleted!",
+            error: "Failed to delete task",
+        });
     };
 
-    // ✅ Toggle Complete
+    // ✅ Toggle Completion
     const toggleTaskCompletion = async (id, is_done) => {
-        const toastId = toast.loading("Updating status...");
-        const { error } = await supabase
+        const promise = supabase
             .from("tasks")
             .update({ is_done: !is_done })
             .eq("id", id);
-        toast.dismiss(toastId);
-        if (error) toast.error("Failed to toggle status");
-        else toast.success("Status updated!");
+
+        await toast.promise(promise, {
+            loading: "Updating status...",
+            success: "Status updated!",
+            error: "Failed to update status",
+        });
     };
 
     return (
-        <TaskContext.Provider value={{
-            tasks,
-            addTask,
-            loading,
-            editTask,
-            deleteTask,
-            toggleTaskCompletion,
-            currentPage,
-            setCurrentPage,
-            totalPages,
-            taskFilter,
-            setTaskFilter,
-        }}>
+        <TaskContext.Provider
+            value={{
+                tasks,
+                addTask,
+                loading,
+                editTask,
+                deleteTask,
+                toggleTaskCompletion,
+                currentPage,
+                setCurrentPage,
+                totalPages,
+                taskFilter,
+                setTaskFilter,
+            }}
+        >
             {children}
         </TaskContext.Provider>
     );
