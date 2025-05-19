@@ -1,11 +1,17 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Navigation } from "lucide-react";
 import { useAuth } from "../context/authContext";
 import { useNavigate } from "react-router-dom";
+import { getCurrentLocation } from "../utils/getCurrentLocation";
 
 const NavBar = () => {
-    const { session, mobile, userData, handleLogout, loadingAuth } = useAuth();
+    const [coords, setCoords] = useState({ lat: null, lng: null, accuracy: null });
+    const [loading, setLoading] = useState(false);
+    const [address, setAddress] = useState(null);
+    const [showAddress, setShowAddress] = useState(false); // 👈 NEW: show/hide toggle
+
+    const { session, userData, handleLogout } = useAuth();
     const isLoggedIn = !!session;
     const [isOpen, setIsOpen] = useState(false);
     const nav = useNavigate();
@@ -38,14 +44,47 @@ const NavBar = () => {
         setIsOpen(false);
     };
 
-    // ✅ Share deep link handler
     const handleShare = async () => {
-        const shareUrl = `${window.location.origin}/login?ref=${session?.user?.id}`;
+        const shareData = {
+            title: "Join TaskmanagerX",
+            url: `${window.location.origin}/login?ref=${session?.user?.id}`,
+        };
+        if (navigator.share) {
+            navigator
+                .share(shareData)
+                .then(() => console.log("Referral link shared"))
+                .catch((error) => console.error("Error sharing", error));
+        } else {
+            navigator.clipboard.writeText(shareData.url);
+            alert("Share not supported, link copied to clipboard");
+        }
+    };
+
+    const handleGetLocation = async () => {
+        setLoading(true);
         try {
-            await navigator.clipboard.writeText(shareUrl);
-            alert("Referral link copied to clipboard!");
-        } catch (err) {
-            alert("Failed to copy link.");
+            const location = await getCurrentLocation();
+            setCoords({ lat: location.lat, lng: location.lng, accuracy: location.accuracy });
+
+            const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+            const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.lat},${location.lng}&key=${apiKey}`;
+
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (data.status === "OK" && data.results.length > 0) {
+                const address = data.results[0].formatted_address;
+                setAddress(address);
+                setShowAddress(true); // 👈 Show when fetched
+            } else {
+                console.warn("Unable to get address from coordinates.");
+            }
+
+        } catch (error) {
+            alert(error.message);
+            console.error(error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -72,6 +111,14 @@ const NavBar = () => {
 
                     {/* Desktop Buttons */}
                     <div className="hidden md:flex items-center gap-4">
+                        {isLoggedIn && (
+                            <button
+                                onClick={handleGetLocation}
+                                className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 shadow-md disabled:opacity-50"
+                            >
+                                <Navigation size={24} />
+                            </button>
+                        )}
                         {isLoggedIn && (
                             <button
                                 onClick={handleShare}
@@ -118,6 +165,14 @@ const NavBar = () => {
                             <div className="flex flex-col px-4 py-4 space-y-2">
                                 {isLoggedIn && (
                                     <button
+                                        onClick={handleGetLocation}
+                                        className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 shadow-md disabled:opacity-50"
+                                    >
+                                        <Navigation size={24} />
+                                    </button>
+                                )}
+                                {isLoggedIn && (
+                                    <button
                                         onClick={handleShare}
                                         className="bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-all"
                                     >
@@ -147,10 +202,41 @@ const NavBar = () => {
 
             {/* Mobile Welcome Message */}
             {isLoggedIn && (
-                <div className="block md:hidden relative top-18 text-center text-blue-700 font-semibold text-lg">
+                <div className="block md:hidden mt-[70px] text-center text-blue-700 font-semibold text-lg">
                     Welcome {capitalize(userData?.name)} 👋
                 </div>
             )}
+
+            {/* 📍 Address Section */}
+            <AnimatePresence>
+                {(loading || (showAddress && address)) && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                        className={`fixed mt-20 w-full z-40 px-4 md:px-6`}
+                    >
+                        <div className="max-w-7xl mx-auto flex justify-center md:justify-center">
+                            <div className="bg-white bg-opacity-80 rounded-md px-3 py-2 shadow-md text-sm text-gray-800 flex items-center gap-2 relative">
+                                {loading ? (
+                                    <span className="animate-pulse">📍 Fetching location...</span>
+                                ) : (
+                                    <>
+                                        <span>📍 <strong>Your Address:</strong> {address}</span>
+                                        <button
+                                            onClick={() => setShowAddress(false)}
+                                            className="ml-2 text-gray-500 hover:text-red-500"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
