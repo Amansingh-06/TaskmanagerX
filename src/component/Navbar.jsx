@@ -215,7 +215,7 @@ const NavBar = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.3 }}
-                        className={` mt-0 md:mt-20 w-full z-40 px-4 md:px-6 border-2`}
+                        className={` mt-0 md:mt-20 w-full z-40 px-4 md:px-6 border`}
                     >
                         <div className="max-w-7xl mx-auto flex justify-center md:justify-center">
                             <div className="bg-white bg-opacity-80 rounded-md px-3 py-2 shadow-md text-sm text-gray-800 flex items-center gap-2 relative">
