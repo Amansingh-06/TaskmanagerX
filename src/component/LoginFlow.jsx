@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import useLoginFlow from "../hooks/useLoginFlow";
 import { Toaster } from "react-hot-toast";
 import OTPInput from "react-otp-input";
+import useReferralTracker from "../hooks/useReferral";
 
 const LoginFlow = () => {
     const {
@@ -26,60 +27,56 @@ const LoginFlow = () => {
 
     const otpRefs = Array.from({ length: 6 }, () => useRef(null));
 
+    useReferralTracker();
+
     useEffect(() => {
         let controller;
-
         const attemptOtpAutofill = async () => {
             if ("OTPCredential" in window && step === "otp") {
                 try {
                     controller = new AbortController();
                     const timeout = setTimeout(() => controller.abort(), 60000);
-
+    
                     const content = await navigator.credentials.get({
                         otp: { transport: ["sms"] },
                         signal: controller.signal,
                     });
-
+    
                     clearTimeout(timeout);
-
-                    if (content && content.code) {
+    
+                    if (content?.code) {
                         const numericCode = content.code.replace(/\D/g, "").slice(0, 6);
                         setOtp(numericCode);
-
+                        // Autofill happened: move focus to last filled digit
+                        const lastIndex = numericCode.length - 1;
                         setTimeout(() => {
-                            const lastIndex = numericCode.length - 1;
-                            if (otpRefs[lastIndex]?.current) {
-                                otpRefs[lastIndex].current.focus();
-                            }
+                            otpRefs[lastIndex]?.current?.focus();
                         }, 100);
                     }
                 } catch (error) {
                     if (error.name !== "AbortError") {
                         console.error("OTP Autofill Error:", error);
                     }
+                    // Autofill failed: focus first input manually
                     setTimeout(() => {
-                        if (otpRefs[0]?.current) {
-                            otpRefs[0].current.focus();
-                        }
+                        otpRefs[0]?.current?.focus();
                     }, 100);
                 }
             } else if (step === "otp") {
+                // Not supported: focus first input manually
                 setTimeout(() => {
-                    if (otpRefs[0]?.current) {
-                        otpRefs[0].current.focus();
-                    }
+                    otpRefs[0]?.current?.focus();
                 }, 100);
             }
         };
-
+    
         attemptOtpAutofill();
-
+    
         return () => {
-            if (controller) {
-                controller.abort();
-            }
+            if (controller) controller.abort();
         };
     }, [step]);
+    
 
     const animation = {
         initial: { opacity: 0, y: 20 },

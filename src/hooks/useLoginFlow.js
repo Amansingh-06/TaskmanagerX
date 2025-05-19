@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "../supabaseClient";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { registerNewUser } from "../utils/registerNewUser";
 
 const useLoginFlow = () => {
     const [step, setStep] = useState("mobile");
@@ -35,21 +36,25 @@ const useLoginFlow = () => {
     // 🧾 Handle Name Submit (if name was missing after OTP)
     const handleNameSubmit = async () => {
         try {
-            const { error } = await supabase
-                .from("users")
-                .insert([{ phone: formattedPhone, name }]);
+            const currentUser = await supabase.auth.getUser();
+            console.log(currentUser)
+            const userId = currentUser?.data?.user?.id;
 
-            if (error) {
-                toast.error("Failed to register name ❌");
-            } else {
-                toast.success("Name added successfully ✅");
-                navigate("/", { replace: true });
+            if (!userId) {
+                toast.error("User not logged in ❌");
+                return;
             }
+
+            await registerNewUser(userId, name, formattedPhone);
+            toast.success("User registered successfully ✅");
+
+            navigate("/", { replace: true });
         } catch (err) {
             console.error("❌ Unexpected error in handleNameSubmit:", err);
-            toast.error("Unexpected error");
+            toast.error("Unexpected error during registration ❌");
         }
     };
+    
 
     // 🔐 Send OTP via Supabase
     const sendOtp = async () => {

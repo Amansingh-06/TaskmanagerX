@@ -5,11 +5,11 @@ import { useAuth } from "../context/authContext";
 import { useNavigate } from "react-router-dom";
 
 const NavBar = () => {
-    const { session, mobile, userData, handleLogout,loadingAuth } = useAuth();
-    const isLoggedIn = !!session; // Check if user is logged in
+    const { session, mobile, userData, handleLogout, loadingAuth } = useAuth();
+    const isLoggedIn = !!session;
     const [isOpen, setIsOpen] = useState(false);
-    
-const nav = useNavigate();
+    const nav = useNavigate();
+
     const toggleMenu = () => setIsOpen(!isOpen);
 
     const capitalize = (name) => {
@@ -17,37 +17,46 @@ const nav = useNavigate();
         return name.charAt(0).toUpperCase() + name.slice(1);
     };
 
-
     const welcomeAnimation = {
         initial: { opacity: 0, y: -10 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: -10 },
-        transition: { duration: 0.5, ease: "easeInOut" }
+        transition: { duration: 0.5, ease: "easeInOut" },
     };
 
-  const  handleLogin = () => {
-      nav("/login")
-  
+    const handleLogin = () => {
+        nav("/login");
     };
-  const handlemobileLogin = () => { 
-      nav("/login");
-      setIsOpen(false);
-  } 
+
+    const handlemobileLogin = () => {
+        nav("/login");
+        setIsOpen(false);
+    };
+
     const handlemobileLogout = () => {
         handleLogout();
         setIsOpen(false);
-    }   
-   
-  
+    };
+
+    // ✅ Share deep link handler
+    const handleShare = async () => {
+        const shareUrl = `${window.location.origin}/login?ref=${session?.user?.id}`;
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            alert("Referral link copied to clipboard!");
+        } catch (err) {
+            alert("Failed to copy link.");
+        }
+    };
 
     return (
         <div>
-            <nav className="bg-gradient-to-r from-white via-blue-100 to-blue-200  shadow-md md:px-6 px-3 py-3 fixed top-0 w-full z-50">
+            <nav className="bg-gradient-to-r from-white via-blue-100 to-blue-200 shadow-md md:px-6 px-3 py-3 fixed top-0 w-full z-50">
                 <div className="max-w-7xl mx-auto flex items-center justify-between relative">
-                    {/* Left: Logo */}
+                    {/* Logo */}
                     <div className="text-2xl font-bold text-blue-600">TaskmanagerX</div>
 
-                    {/* Center: Animated Welcome (desktop only) */}
+                    {/* Animated Welcome */}
                     <AnimatePresence>
                         {isLoggedIn && (
                             <motion.div
@@ -61,9 +70,17 @@ const nav = useNavigate();
                         )}
                     </AnimatePresence>
 
-                    {/* Right: Login/Logout Button */}
-                    <div className="hidden md:flex items-center gap-6">
-                       {isLoggedIn ? (
+                    {/* Desktop Buttons */}
+                    <div className="hidden md:flex items-center gap-4">
+                        {isLoggedIn && (
+                            <button
+                                onClick={handleShare}
+                                className="bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-all"
+                            >
+                                Share
+                            </button>
+                        )}
+                        {isLoggedIn ? (
                             <button
                                 onClick={handleLogout}
                                 className="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition-all cursor-pointer"
@@ -77,10 +94,10 @@ const nav = useNavigate();
                             >
                                 Login
                             </button>
-                        )}  
+                        )}
                     </div>
 
-                    {/* Mobile Menu Icon */}
+                    {/* Mobile Icon */}
                     <div className="md:hidden">
                         <button onClick={toggleMenu} className="text-gray-800">
                             {isOpen ? <X size={28} /> : <Menu size={28} />}
@@ -88,7 +105,7 @@ const nav = useNavigate();
                     </div>
                 </div>
 
-                {/* Mobile Dropdown */}
+                {/* Mobile Menu */}
                 <AnimatePresence>
                     {isOpen && (
                         <motion.div
@@ -99,6 +116,14 @@ const nav = useNavigate();
                             className="md:hidden overflow-hidden bg-white shadow-inner mt-3 rounded-lg"
                         >
                             <div className="flex flex-col px-4 py-4 space-y-2">
+                                {isLoggedIn && (
+                                    <button
+                                        onClick={handleShare}
+                                        className="bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-all"
+                                    >
+                                        Share
+                                    </button>
+                                )}
                                 {isLoggedIn ? (
                                     <button
                                         onClick={handlemobileLogout}
@@ -107,8 +132,10 @@ const nav = useNavigate();
                                         Logout
                                     </button>
                                 ) : (
-                                        <button className="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition-all"
-                                        onClick={handlemobileLogin}>
+                                    <button
+                                        className="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition-all"
+                                        onClick={handlemobileLogin}
+                                    >
                                         Login
                                     </button>
                                 )}
@@ -116,19 +143,14 @@ const nav = useNavigate();
                         </motion.div>
                     )}
                 </AnimatePresence>
-             
             </nav>
-            {isLoggedIn && (
-                <div
 
-                    className="block md:hidden relative top-18 text-center text-blue-700 font-semibold text-lg"
-                >
+            {/* Mobile Welcome Message */}
+            {isLoggedIn && (
+                <div className="block md:hidden relative top-18 text-center text-blue-700 font-semibold text-lg">
                     Welcome {capitalize(userData?.name)} 👋
                 </div>
             )}
-
-           
-          
         </div>
     );
 };
