@@ -166,7 +166,7 @@ const NavBar = () => {
                                 {isLoggedIn && (
                                     <button
                                         onClick={handleGetLocation}
-                                        className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 shadow-md disabled:opacity-50"
+                                        className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 shadow-md disabled:opacity-50 flex justify-center items-center"
                                     >
                                         <Navigation size={24} />
                                     </button>
@@ -215,7 +215,7 @@ const NavBar = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.3 }}
-                        className={`fixed mt-20 w-full z-40 px-4 md:px-6`}
+                        className={` mt-0 md:mt-20 w-full z-40 px-4 md:px-6 border-2`}
                     >
                         <div className="max-w-7xl mx-auto flex justify-center md:justify-center">
                             <div className="bg-white bg-opacity-80 rounded-md px-3 py-2 shadow-md text-sm text-gray-800 flex items-center gap-2 relative">
